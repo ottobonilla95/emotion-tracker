@@ -11,13 +11,13 @@ interface MoodPickerProps {
 
 export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
       {[...MOOD_LEVELS].reverse().map((level) => (
         <button
           key={level.score}
           onClick={() => onSelect(level)}
           className={cn(
-            "flex flex-col items-center gap-1 px-4 py-3 rounded-xl border-2 transition-all hover:scale-105 flex-1",
+            "flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 transition-all hover:scale-105",
             selected?.score === level.score
               ? "scale-105 shadow-md"
               : "border-transparent hover:border-muted-foreground/20 hover:bg-muted"

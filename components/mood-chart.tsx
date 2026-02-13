@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -13,6 +14,17 @@ import {
 import { getMoodLevel } from "@/lib/emotions";
 import type { MoodStats } from "@/lib/types";
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 interface MoodScoreChartProps {
   data: MoodStats["dailyScores"];
 }
@@ -23,6 +35,14 @@ const SCORE_LABELS: Record<number, string> = {
   0: "Neutral",
   "-1": "Bad",
   "-2": "Very Bad",
+};
+
+const SCORE_LABELS_SHORT: Record<number, string> = {
+  2: "+2",
+  1: "+1",
+  0: "0",
+  "-1": "-1",
+  "-2": "-2",
 };
 
 function CustomTooltip({
@@ -49,6 +69,10 @@ function CustomTooltip({
 }
 
 export function MoodScoreChart({ data }: MoodScoreChartProps) {
+  const isMobile = useIsMobile();
+  const labels = isMobile ? SCORE_LABELS_SHORT : SCORE_LABELS;
+  const yAxisWidth = isMobile ? 35 : 80;
+
   const chartData = data.map((item) => ({
     ...item,
     date: new Date(item.date + "T00:00:00").toLocaleDateString(undefined, {
@@ -85,8 +109,8 @@ export function MoodScoreChart({ data }: MoodScoreChartProps) {
           domain={[-2, 2]}
           ticks={[-2, -1, 0, 1, 2]}
           tick={{ fontSize: 11 }}
-          tickFormatter={(value: number) => SCORE_LABELS[value] || String(value)}
-          width={80}
+          tickFormatter={(value: number) => labels[value] || String(value)}
+          width={yAxisWidth}
         />
         <Tooltip content={<CustomTooltip />} />
         <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 4" />

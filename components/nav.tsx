@@ -16,16 +16,16 @@ export function Nav() {
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-2xl flex items-center justify-between px-4 h-14">
-        <Link href="/" className="text-lg font-semibold">
+        <Link href="/" className="text-base sm:text-lg font-semibold shrink-0">
           Emotion Tracker
         </Link>
-        <div className="flex gap-1">
+        <div className="flex gap-0.5 sm:gap-1">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                "px-3 py-1.5 text-sm rounded-md transition-colors",
+                "px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors",
                 pathname === link.href
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"

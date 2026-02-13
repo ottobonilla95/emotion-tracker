@@ -42,7 +42,7 @@ export default function HistoryPage() {
         <p className="text-muted-foreground">Your recent mood entries</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {FILTER_OPTIONS.map((opt) => (
           <Button
             key={opt.value}

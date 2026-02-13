@@ -64,24 +64,26 @@ export default function InsightsPage() {
         <p className="text-muted-foreground">Your mood patterns and trends</p>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           onClick={() => setPeriodOffset((o) => o + 1)}
         >
-          &larr; Previous 3 months
+          &larr; <span className="hidden sm:inline">Previous 3 months</span><span className="sm:hidden">Previous</span>
         </Button>
-        <span className="text-sm font-medium text-muted-foreground">
+        <span className="text-sm font-medium text-muted-foreground text-center order-first sm:order-none">
           {dateRange}
         </span>
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           disabled={periodOffset === 0}
           onClick={() => setPeriodOffset((o) => o - 1)}
         >
-          Next 3 months &rarr;
+          <span className="hidden sm:inline">Next 3 months</span><span className="sm:hidden">Next</span> &rarr;
         </Button>
       </div>
 
@@ -95,7 +97,7 @@ export default function InsightsPage() {
         </p>
       ) : (
         <>
-          <div className="grid gap-4 grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">
