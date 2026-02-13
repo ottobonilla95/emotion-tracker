@@ -12,7 +12,7 @@ interface MoodPickerProps {
 export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
   return (
     <div className="flex gap-2 justify-center">
-      {MOOD_LEVELS.map((level) => (
+      {[...MOOD_LEVELS].reverse().map((level) => (
         <button
           key={level.score}
           onClick={() => onSelect(level)}
