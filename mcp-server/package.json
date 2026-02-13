@@ -1,0 +1,19 @@
+{
+  "name": "emotion-tracker-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Emotion Tracker — log and query moods via natural conversation",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@supabase/supabase-js": "^2.95.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
