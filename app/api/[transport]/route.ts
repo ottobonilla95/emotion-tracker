@@ -1,5 +1,21 @@
 import { createMcpHandler } from "mcp-handler";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+
+const SCORE_LABELS: Record<number, string> = {
+  2: "Super Good",
+  1: "Good",
+  0: "Neutral",
+  [-1]: "Bad",
+  [-2]: "Very Bad",
+};
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 const handler = createMcpHandler(
   (server) => {
@@ -30,21 +46,19 @@ const handler = createMcpHandler(
         },
       },
       async ({ emoji, label, score, notes }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://emotion-tracker-alpha.vercel.app";
-        const res = await fetch(`${baseUrl}/api/mood`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emoji, label, score, notes: notes || null }),
-        });
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from("mood_entries")
+          .insert({ emoji, label, score, notes: notes || null })
+          .select()
+          .single();
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
+        if (error) {
           return {
-            content: [{ type: "text" as const, text: `Error logging mood: ${err.error}` }],
+            content: [{ type: "text" as const, text: `Error logging mood: ${error.message}` }],
           };
         }
 
-        const data = await res.json();
         const scoreStr = score > 0 ? `+${score}` : `${score}`;
         return {
           content: [
@@ -72,17 +86,21 @@ const handler = createMcpHandler(
         },
       },
       async ({ days }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://emotion-tracker-alpha.vercel.app";
-        const res = await fetch(`${baseUrl}/api/mood?days=${days}`);
+        const supabase = getSupabase();
+        const since = new Date();
+        since.setDate(since.getDate() - days);
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
+        const { data, error } = await supabase
+          .from("mood_entries")
+          .select("*")
+          .gte("created_at", since.toISOString())
+          .order("created_at", { ascending: false });
+
+        if (error) {
           return {
-            content: [{ type: "text" as const, text: `Error fetching history: ${err.error}` }],
+            content: [{ type: "text" as const, text: `Error fetching history: ${error.message}` }],
           };
         }
-
-        const data = await res.json();
 
         if (!data || data.length === 0) {
           return {
@@ -91,14 +109,6 @@ const handler = createMcpHandler(
             ],
           };
         }
-
-        const SCORE_LABELS: Record<number, string> = {
-          2: "Super Good",
-          1: "Good",
-          0: "Neutral",
-          [-1]: "Bad",
-          [-2]: "Very Bad",
-        };
 
         const lines = data.map(
           (entry: {
@@ -141,19 +151,23 @@ const handler = createMcpHandler(
         },
       },
       async ({ days }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://emotion-tracker-alpha.vercel.app";
-        const res = await fetch(`${baseUrl}/api/mood/stats?days=${days}`);
+        const supabase = getSupabase();
+        const since = new Date();
+        since.setDate(since.getDate() - days);
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
+        const { data, error } = await supabase
+          .from("mood_entries")
+          .select("*")
+          .gte("created_at", since.toISOString())
+          .order("created_at", { ascending: true });
+
+        if (error) {
           return {
-            content: [{ type: "text" as const, text: `Error fetching stats: ${err.error}` }],
+            content: [{ type: "text" as const, text: `Error fetching stats: ${error.message}` }],
           };
         }
 
-        const stats = await res.json();
-
-        if (stats.totalEntries === 0) {
+        if (!data || data.length === 0) {
           return {
             content: [
               { type: "text" as const, text: `No mood entries found in the last ${days} days.` },
@@ -161,30 +175,45 @@ const handler = createMcpHandler(
           };
         }
 
-        const SCORE_LABELS: Record<number, string> = {
-          2: "Super Good",
-          1: "Good",
-          0: "Neutral",
-          [-1]: "Bad",
-          [-2]: "Very Bad",
-        };
+        const totalEntries = data.length;
+        const avgScore =
+          Math.round(
+            (data.reduce((sum: number, e: { score: number }) => sum + (e.score ?? 0), 0) /
+              totalEntries) *
+              10
+          ) / 10;
+        const avgScoreStr = avgScore > 0 ? `+${avgScore}` : `${avgScore}`;
 
-        const avgScoreStr =
-          stats.avgScore > 0 ? `+${stats.avgScore}` : `${stats.avgScore}`;
-        const topMood = stats.mostFrequentMood;
+        const frequencyMap = new Map<
+          string,
+          { emoji: string; label: string; count: number }
+        >();
+        for (const entry of data) {
+          const existing = frequencyMap.get(entry.emoji);
+          if (existing) {
+            existing.count++;
+          } else {
+            frequencyMap.set(entry.emoji, {
+              emoji: entry.emoji,
+              label: entry.label,
+              count: 1,
+            });
+          }
+        }
+        const sorted = Array.from(frequencyMap.values()).sort(
+          (a, b) => b.count - a.count
+        );
+        const topMood = sorted[0];
 
-        const freqLines = stats.moodFrequency
-          .map(
-            (m: { emoji: string; label: string; count: number }) =>
-              `  ${m.emoji} ${m.label}: ${m.count} times`
-          )
+        const freqLines = sorted
+          .map((m) => `  ${m.emoji} ${m.label}: ${m.count} times`)
           .join("\n");
 
         return {
           content: [
             {
               type: "text" as const,
-              text: `Mood stats (last ${days} days):\n\nTotal entries: ${stats.totalEntries}\nAverage score: ${avgScoreStr} (${SCORE_LABELS[Math.round(stats.avgScore)] || "Mixed"})\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
+              text: `Mood stats (last ${days} days):\n\nTotal entries: ${totalEntries}\nAverage score: ${avgScoreStr} (${SCORE_LABELS[Math.round(avgScore)] || "Mixed"})\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
             },
           ],
         };
@@ -201,15 +230,15 @@ const handler = createMcpHandler(
         },
       },
       async ({ id }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://emotion-tracker-alpha.vercel.app";
-        const res = await fetch(`${baseUrl}/api/mood/${id}`, {
-          method: "DELETE",
-        });
+        const supabase = getSupabase();
+        const { error } = await supabase
+          .from("mood_entries")
+          .delete()
+          .eq("id", id);
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
+        if (error) {
           return {
-            content: [{ type: "text" as const, text: `Error deleting entry: ${err.error}` }],
+            content: [{ type: "text" as const, text: `Error deleting entry: ${error.message}` }],
           };
         }
 
