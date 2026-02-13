@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { EmojiPicker } from "@/components/emoji-picker";
-import { IntensitySlider } from "@/components/intensity-slider";
+import { MoodPicker } from "@/components/emoji-picker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Emotion } from "@/lib/types";
+import type { MoodLevel } from "@/lib/types";
 
 export default function Home() {
-  const [selected, setSelected] = useState<Emotion | null>(null);
-  const [intensity, setIntensity] = useState(5);
+  const [selected, setSelected] = useState<MoodLevel | null>(null);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 
@@ -25,7 +23,7 @@ export default function Home() {
         body: JSON.stringify({
           emoji: selected.emoji,
           label: selected.label,
-          intensity,
+          score: selected.score,
           notes: notes.trim() || null,
         }),
       });
@@ -34,7 +32,6 @@ export default function Home() {
 
       setStatus("success");
       setSelected(null);
-      setIntensity(5);
       setNotes("");
       setTimeout(() => setStatus("idle"), 2000);
     } catch {
@@ -47,10 +44,10 @@ export default function Home() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">How are you feeling?</h1>
-        <p className="text-muted-foreground">Select an emotion to log your mood</p>
+        <p className="text-muted-foreground">Select your mood to log it</p>
       </div>
 
-      <EmojiPicker selected={selected} onSelect={setSelected} />
+      <MoodPicker selected={selected} onSelect={setSelected} />
 
       {selected && (
         <Card>
@@ -61,8 +58,6 @@ export default function Home() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <IntensitySlider value={intensity} onChange={setIntensity} />
-
             <div className="space-y-2">
               <label className="text-sm font-medium">Notes (optional)</label>
               <Textarea

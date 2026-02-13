@@ -15,23 +15,31 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const server = new McpServer({
   name: "emotion-tracker",
-  version: "1.0.0",
+  version: "2.0.0",
 });
+
+const SCORE_LABELS: Record<number, string> = {
+  2: "Super Good",
+  1: "Good",
+  0: "Neutral",
+  [-1]: "Bad",
+  [-2]: "Very Bad",
+};
 
 // Tool: log_mood
 server.tool(
   "log_mood",
-  "Log an emotion/mood entry. Use this when the user describes how they're feeling.",
+  "Log a mood entry on a 5-point scale. Use this when the user describes how they're feeling. Map their feeling to a score: +2 (Super Good), +1 (Good), 0 (Neutral), -1 (Bad), -2 (Very Bad).",
   {
-    emoji: z.string().describe("Emoji representing the mood (e.g. 😊, 😔, 😰)"),
-    label: z.string().describe("Human-readable label (e.g. Happy, Sad, Anxious)"),
-    intensity: z.number().min(1).max(10).describe("Intensity on a 1-10 scale"),
+    emoji: z.string().describe("Emoji representing the mood: 😄 (+2), 🙂 (+1), 😐 (0), 😕 (-1), 😞 (-2)"),
+    label: z.string().describe("Label: Super Good, Good, Neutral, Bad, or Very Bad"),
+    score: z.number().min(-2).max(2).describe("Mood score from -2 (Very Bad) to +2 (Super Good)"),
     notes: z.string().optional().describe("Optional free-form notes about the mood"),
   },
-  async ({ emoji, label, intensity, notes }) => {
+  async ({ emoji, label, score, notes }) => {
     const { data, error } = await supabase
       .from("mood_entries")
-      .insert({ emoji, label, intensity, notes: notes || null })
+      .insert({ emoji, label, score, notes: notes || null })
       .select()
       .single();
 
@@ -39,11 +47,12 @@ server.tool(
       return { content: [{ type: "text" as const, text: `Error logging mood: ${error.message}` }] };
     }
 
+    const scoreStr = score > 0 ? `+${score}` : `${score}`;
     return {
       content: [
         {
           type: "text" as const,
-          text: `Logged: ${emoji} ${label} (intensity ${intensity}/10)${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
+          text: `Logged: ${emoji} ${label} (score ${scoreStr})${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
         },
       ],
     };
@@ -75,9 +84,11 @@ server.tool(
       return { content: [{ type: "text" as const, text: `No mood entries found in the last ${days} days.` }] };
     }
 
-    const lines = data.map((entry: { emoji: string; label: string; intensity: number; notes: string | null; created_at: string }) => {
+    const lines = data.map((entry: { emoji: string; label: string; score: number; notes: string | null; created_at: string }) => {
       const date = new Date(entry.created_at).toLocaleString();
-      return `${entry.emoji} ${entry.label} (${entry.intensity}/10) — ${date}${entry.notes ? `\n   Notes: ${entry.notes}` : ""}`;
+      const scoreStr = entry.score > 0 ? `+${entry.score}` : `${entry.score}`;
+      const label = SCORE_LABELS[entry.score] || entry.label;
+      return `${entry.emoji} ${label} (${scoreStr}) — ${date}${entry.notes ? `\n   Notes: ${entry.notes}` : ""}`;
     });
 
     return {
@@ -117,7 +128,8 @@ server.tool(
     }
 
     const totalEntries = data.length;
-    const avgIntensity = Math.round((data.reduce((sum: number, e: { intensity: number }) => sum + e.intensity, 0) / totalEntries) * 10) / 10;
+    const avgScore = Math.round((data.reduce((sum: number, e: { score: number }) => sum + (e.score ?? 0), 0) / totalEntries) * 10) / 10;
+    const avgScoreStr = avgScore > 0 ? `+${avgScore}` : `${avgScore}`;
 
     const frequencyMap = new Map<string, { emoji: string; label: string; count: number }>();
     for (const entry of data) {
@@ -137,7 +149,7 @@ server.tool(
       content: [
         {
           type: "text" as const,
-          text: `Mood stats (last ${days} days):\n\nTotal entries: ${totalEntries}\nAverage intensity: ${avgIntensity}/10\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
+          text: `Mood stats (last ${days} days):\n\nTotal entries: ${totalEntries}\nAverage score: ${avgScoreStr} (${SCORE_LABELS[Math.round(avgScore)] || "Mixed"})\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
         },
       ],
     };

@@ -1,77 +1,106 @@
 "use client";
 
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
+  ReferenceLine,
 } from "recharts";
-import { EMOTIONS } from "@/lib/emotions";
+import { getMoodLevel } from "@/lib/emotions";
 import type { MoodStats } from "@/lib/types";
 
-interface MoodFrequencyChartProps {
-  data: MoodStats["moodFrequency"];
+interface MoodScoreChartProps {
+  data: MoodStats["dailyScores"];
 }
 
-export function MoodFrequencyChart({ data }: MoodFrequencyChartProps) {
-  const chartData = data.map((item) => ({
-    ...item,
-    name: `${item.emoji} ${item.label}`,
-    color: EMOTIONS.find((e) => e.emoji === item.emoji)?.color || "#9E9E9E",
-  }));
+const SCORE_LABELS: Record<number, string> = {
+  2: "Super Good",
+  1: "Good",
+  0: "Neutral",
+  "-1": "Bad",
+  "-2": "Very Bad",
+};
 
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const score = payload[0].value;
+  const level = getMoodLevel(Math.round(score));
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis allowDecimals={false} />
-        <Tooltip />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell key={index} fill={entry.color} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="bg-popover border rounded-lg p-2 shadow-md text-sm">
+      <p className="font-medium">
+        {level.emoji} {level.label}
+      </p>
+      <p className="text-muted-foreground">Score: {score}</p>
+      <p className="text-muted-foreground">{label}</p>
+    </div>
   );
 }
 
-interface IntensityTrendChartProps {
-  data: MoodStats["recentTrend"];
-}
-
-export function IntensityTrendChart({ data }: IntensityTrendChartProps) {
+export function MoodScoreChart({ data }: MoodScoreChartProps) {
   const chartData = data.map((item) => ({
     ...item,
-    date: new Date(item.date).toLocaleDateString(undefined, {
+    date: new Date(item.date + "T00:00:00").toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     }),
   }));
 
+  if (chartData.length === 0) {
+    return (
+      <p className="text-muted-foreground text-center py-12">
+        No data for this period.
+      </p>
+    );
+  }
+
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData}>
+    <ResponsiveContainer width="100%" height={350}>
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
+            <stop offset="50%" stopColor="#9ca3af" stopOpacity={0.1} />
+            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
+          </linearGradient>
+        </defs>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-        <YAxis domain={[1, 10]} />
-        <Tooltip />
-        <Line
-          type="monotone"
-          dataKey="avgIntensity"
-          stroke="hsl(var(--primary))"
-          strokeWidth={2}
-          dot={{ r: 4 }}
-          name="Avg Intensity"
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 11 }}
+          interval="preserveStartEnd"
         />
-      </LineChart>
+        <YAxis
+          domain={[-2, 2]}
+          ticks={[-2, -1, 0, 1, 2]}
+          tick={{ fontSize: 11 }}
+          tickFormatter={(value: number) => SCORE_LABELS[value] || String(value)}
+          width={80}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 4" />
+        <Area
+          type="monotone"
+          dataKey="avgScore"
+          stroke="#6366f1"
+          strokeWidth={2}
+          fill="url(#scoreGradient)"
+          dot={{ r: 3, fill: "#6366f1" }}
+          activeDot={{ r: 5 }}
+          name="Mood Score"
+        />
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import type { MoodEntry } from "@/lib/types";
-import { EMOTIONS } from "@/lib/emotions";
+import { getMoodLevel } from "@/lib/emotions";
 
 interface MoodCardProps {
   entry: MoodEntry;
@@ -12,7 +12,7 @@ interface MoodCardProps {
 }
 
 export function MoodCard({ entry, onDelete }: MoodCardProps) {
-  const emotion = EMOTIONS.find((e) => e.emoji === entry.emoji);
+  const level = getMoodLevel(entry.score);
   const date = new Date(entry.created_at);
 
   return (
@@ -22,18 +22,15 @@ export function MoodCard({ entry, onDelete }: MoodCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{entry.label}</span>
-            <div className="flex items-center gap-1">
-              <div
-                className="h-2 rounded-full"
-                style={{
-                  width: `${entry.intensity * 10}px`,
-                  backgroundColor: emotion?.color || "#9E9E9E",
-                }}
-              />
-              <span className="text-xs text-muted-foreground">
-                {entry.intensity}/10
-              </span>
-            </div>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{
+                backgroundColor: `${level.color}20`,
+                color: level.color,
+              }}
+            >
+              {level.label}
+            </span>
           </div>
           {entry.notes && (
             <p className="text-sm text-muted-foreground mt-1">{entry.notes}</p>

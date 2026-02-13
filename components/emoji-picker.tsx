@@ -1,30 +1,35 @@
 "use client";
 
-import { EMOTIONS } from "@/lib/emotions";
+import { MOOD_LEVELS } from "@/lib/emotions";
 import { cn } from "@/lib/utils";
-import type { Emotion } from "@/lib/types";
+import type { MoodLevel } from "@/lib/types";
 
-interface EmojiPickerProps {
-  selected: Emotion | null;
-  onSelect: (emotion: Emotion) => void;
+interface MoodPickerProps {
+  selected: MoodLevel | null;
+  onSelect: (level: MoodLevel) => void;
 }
 
-export function EmojiPicker({ selected, onSelect }: EmojiPickerProps) {
+export function MoodPicker({ selected, onSelect }: MoodPickerProps) {
   return (
-    <div className="grid grid-cols-5 gap-3">
-      {EMOTIONS.map((emotion) => (
+    <div className="flex gap-2 justify-center">
+      {MOOD_LEVELS.map((level) => (
         <button
-          key={emotion.emoji}
-          onClick={() => onSelect(emotion)}
+          key={level.score}
+          onClick={() => onSelect(level)}
           className={cn(
-            "flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all hover:scale-105",
-            selected?.emoji === emotion.emoji
-              ? "border-primary bg-primary/5 scale-105 shadow-md"
+            "flex flex-col items-center gap-1 px-4 py-3 rounded-xl border-2 transition-all hover:scale-105 flex-1",
+            selected?.score === level.score
+              ? "scale-105 shadow-md"
               : "border-transparent hover:border-muted-foreground/20 hover:bg-muted"
           )}
+          style={
+            selected?.score === level.score
+              ? { borderColor: level.color, backgroundColor: `${level.color}15` }
+              : undefined
+          }
         >
-          <span className="text-3xl">{emotion.emoji}</span>
-          <span className="text-xs text-muted-foreground">{emotion.label}</span>
+          <span className="text-3xl">{level.emoji}</span>
+          <span className="text-xs text-muted-foreground">{level.label}</span>
         </button>
       ))}
     </div>
