@@ -1,17 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables");
-  process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const API_BASE = process.env.EMOTION_TRACKER_API_URL || "https://emotion-tracker-alpha.vercel.app";
 
 const server = new McpServer({
   name: "emotion-tracker",
@@ -37,16 +28,18 @@ server.tool(
     notes: z.string().optional().describe("Optional free-form notes about the mood"),
   },
   async ({ emoji, label, score, notes }) => {
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .insert({ emoji, label, score, notes: notes || null })
-      .select()
-      .single();
+    const res = await fetch(`${API_BASE}/api/mood`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji, label, score, notes: notes || null }),
+    });
 
-    if (error) {
-      return { content: [{ type: "text" as const, text: `Error logging mood: ${error.message}` }] };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      return { content: [{ type: "text" as const, text: `Error logging mood: ${err.error}` }] };
     }
 
+    const data = await res.json();
     const scoreStr = score > 0 ? `+${score}` : `${score}`;
     return {
       content: [
@@ -67,18 +60,14 @@ server.tool(
     days: z.number().optional().default(7).describe("Number of days to look back (default 7)"),
   },
   async ({ days }) => {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+    const res = await fetch(`${API_BASE}/api/mood?days=${days}`);
 
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .select("*")
-      .gte("created_at", since.toISOString())
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return { content: [{ type: "text" as const, text: `Error fetching history: ${error.message}` }] };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      return { content: [{ type: "text" as const, text: `Error fetching history: ${err.error}` }] };
     }
+
+    const data = await res.json();
 
     if (!data || data.length === 0) {
       return { content: [{ type: "text" as const, text: `No mood entries found in the last ${days} days.` }] };
@@ -87,8 +76,8 @@ server.tool(
     const lines = data.map((entry: { emoji: string; label: string; score: number; notes: string | null; created_at: string }) => {
       const date = new Date(entry.created_at).toLocaleString();
       const scoreStr = entry.score > 0 ? `+${entry.score}` : `${entry.score}`;
-      const label = SCORE_LABELS[entry.score] || entry.label;
-      return `${entry.emoji} ${label} (${scoreStr}) — ${date}${entry.notes ? `\n   Notes: ${entry.notes}` : ""}`;
+      const entryLabel = SCORE_LABELS[entry.score] || entry.label;
+      return `${entry.emoji} ${entryLabel} (${scoreStr}) — ${date}${entry.notes ? `\n   Notes: ${entry.notes}` : ""}`;
     });
 
     return {
@@ -110,46 +99,31 @@ server.tool(
     days: z.number().optional().default(30).describe("Number of days to analyze (default 30)"),
   },
   async ({ days }) => {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+    const res = await fetch(`${API_BASE}/api/mood/stats?days=${days}`);
 
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .select("*")
-      .gte("created_at", since.toISOString())
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      return { content: [{ type: "text" as const, text: `Error fetching stats: ${error.message}` }] };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      return { content: [{ type: "text" as const, text: `Error fetching stats: ${err.error}` }] };
     }
 
-    if (!data || data.length === 0) {
+    const stats = await res.json();
+
+    if (stats.totalEntries === 0) {
       return { content: [{ type: "text" as const, text: `No mood entries found in the last ${days} days.` }] };
     }
 
-    const totalEntries = data.length;
-    const avgScore = Math.round((data.reduce((sum: number, e: { score: number }) => sum + (e.score ?? 0), 0) / totalEntries) * 10) / 10;
-    const avgScoreStr = avgScore > 0 ? `+${avgScore}` : `${avgScore}`;
+    const avgScoreStr = stats.avgScore > 0 ? `+${stats.avgScore}` : `${stats.avgScore}`;
+    const topMood = stats.mostFrequentMood;
 
-    const frequencyMap = new Map<string, { emoji: string; label: string; count: number }>();
-    for (const entry of data) {
-      const existing = frequencyMap.get(entry.emoji);
-      if (existing) {
-        existing.count++;
-      } else {
-        frequencyMap.set(entry.emoji, { emoji: entry.emoji, label: entry.label, count: 1 });
-      }
-    }
-    const sorted = Array.from(frequencyMap.values()).sort((a, b) => b.count - a.count);
-    const topMood = sorted[0];
-
-    const freqLines = sorted.map((m) => `  ${m.emoji} ${m.label}: ${m.count} times`).join("\n");
+    const freqLines = stats.moodFrequency
+      .map((m: { emoji: string; label: string; count: number }) => `  ${m.emoji} ${m.label}: ${m.count} times`)
+      .join("\n");
 
     return {
       content: [
         {
           type: "text" as const,
-          text: `Mood stats (last ${days} days):\n\nTotal entries: ${totalEntries}\nAverage score: ${avgScoreStr} (${SCORE_LABELS[Math.round(avgScore)] || "Mixed"})\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
+          text: `Mood stats (last ${days} days):\n\nTotal entries: ${stats.totalEntries}\nAverage score: ${avgScoreStr} (${SCORE_LABELS[Math.round(stats.avgScore)] || "Mixed"})\nMost frequent mood: ${topMood.emoji} ${topMood.label} (${topMood.count} times)\n\nBreakdown:\n${freqLines}`,
         },
       ],
     };
@@ -164,10 +138,11 @@ server.tool(
     id: z.number().describe("The ID of the mood entry to delete"),
   },
   async ({ id }) => {
-    const { error } = await supabase.from("mood_entries").delete().eq("id", id);
+    const res = await fetch(`${API_BASE}/api/mood/${id}`, { method: "DELETE" });
 
-    if (error) {
-      return { content: [{ type: "text" as const, text: `Error deleting entry: ${error.message}` }] };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      return { content: [{ type: "text" as const, text: `Error deleting entry: ${err.error}` }] };
     }
 
     return { content: [{ type: "text" as const, text: `Deleted mood entry #${id}.` }] };
