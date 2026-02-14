@@ -247,6 +247,26 @@ const handler = createMcpHandler(
         };
       }
     );
+
+    server.registerTool(
+      "get_dashboard_link",
+      {
+        title: "Get Dashboard Link",
+        description:
+          "Get the link to the mood tracker dashboard. Use this when the user asks to see their mood chart, report, insights, summary, or dashboard.",
+        inputSchema: {},
+      },
+      async () => {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Here's your mood tracker dashboard:\n\n📊 Insights & Chart: https://emotion-tracker-alpha.vercel.app/insights\n📋 Mood History: https://emotion-tracker-alpha.vercel.app/history\n🏠 Log a Mood: https://emotion-tracker-alpha.vercel.app`,
+            },
+          ],
+        };
+      }
+    );
   },
   {},
   {

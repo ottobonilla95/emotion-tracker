@@ -149,6 +149,23 @@ server.tool(
   }
 );
 
+// Tool: get_dashboard_link
+server.tool(
+  "get_dashboard_link",
+  "Get the link to the mood tracker dashboard. Use this when the user asks to see their mood chart, report, insights, summary, or dashboard.",
+  {},
+  async () => {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Here's your mood tracker dashboard:\n\n📊 Insights & Chart: https://emotion-tracker-alpha.vercel.app/insights\n📋 Mood History: https://emotion-tracker-alpha.vercel.app/history\n🏠 Log a Mood: https://emotion-tracker-alpha.vercel.app`,
+        },
+      ],
+    };
+  }
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
