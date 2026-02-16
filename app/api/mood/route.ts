@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
 
-  const { emoji, label, score, notes } = body;
+  const { emoji, label, score, notes, date } = body;
 
   if (!emoji || !label || score === undefined || score === null) {
     return NextResponse.json(
@@ -49,9 +49,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let created_at: string | undefined;
+  if (date) {
+    const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date);
+    if (isNaN(parsed.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid date format. Use YYYY-MM-DD or ISO 8601." },
+        { status: 400 }
+      );
+    }
+    if (parsed > new Date()) {
+      return NextResponse.json(
+        { error: "Date cannot be in the future." },
+        { status: 400 }
+      );
+    }
+    created_at = parsed.toISOString();
+  }
+
   const { data, error } = await supabase
     .from("mood_entries")
-    .insert({ emoji, label, score, notes: notes || null })
+    .insert({ emoji, label, score, notes: notes || null, ...(created_at && { created_at }) })
     .select()
     .single();
 

@@ -26,12 +26,13 @@ server.tool(
     label: z.string().describe("Label: Super Good, Good, Neutral, Bad, or Very Bad"),
     score: z.number().min(-2).max(2).describe("Mood score from -2 (Very Bad) to +2 (Super Good)"),
     notes: z.string().optional().describe("Optional free-form notes about the mood"),
+    date: z.string().optional().describe("Optional date for the mood entry (YYYY-MM-DD). Use this to log a mood for a past date. Omit to use the current time."),
   },
-  async ({ emoji, label, score, notes }) => {
+  async ({ emoji, label, score, notes, date }) => {
     const res = await fetch(`${API_BASE}/api/mood`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emoji, label, score, notes: notes || null }),
+      body: JSON.stringify({ emoji, label, score, notes: notes || null, ...(date && { date }) }),
     });
 
     if (!res.ok) {
@@ -41,11 +42,12 @@ server.tool(
 
     const data = await res.json();
     const scoreStr = score > 0 ? `+${score}` : `${score}`;
+    const dateNote = date ? ` for ${date}` : "";
     return {
       content: [
         {
           type: "text" as const,
-          text: `Logged: ${emoji} ${label} (score ${scoreStr})${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
+          text: `Logged${dateNote}: ${emoji} ${label} (score ${scoreStr})${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
         },
       ],
     };

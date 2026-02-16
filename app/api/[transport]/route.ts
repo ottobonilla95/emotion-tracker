@@ -43,13 +43,36 @@ const handler = createMcpHandler(
             .string()
             .optional()
             .describe("Optional free-form notes about the mood"),
+          date: z
+            .string()
+            .optional()
+            .describe(
+              "Optional date for the mood entry (YYYY-MM-DD). Use this to log a mood for a past date. Omit to use the current time."
+            ),
         },
       },
-      async ({ emoji, label, score, notes }) => {
+      async ({ emoji, label, score, notes, date }) => {
         const supabase = getSupabase();
+
+        let created_at: string | undefined;
+        if (date) {
+          const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00` : date);
+          if (isNaN(parsed.getTime())) {
+            return {
+              content: [{ type: "text" as const, text: "Invalid date format. Use YYYY-MM-DD or ISO 8601." }],
+            };
+          }
+          if (parsed > new Date()) {
+            return {
+              content: [{ type: "text" as const, text: "Date cannot be in the future." }],
+            };
+          }
+          created_at = parsed.toISOString();
+        }
+
         const { data, error } = await supabase
           .from("mood_entries")
-          .insert({ emoji, label, score, notes: notes || null })
+          .insert({ emoji, label, score, notes: notes || null, ...(created_at && { created_at }) })
           .select()
           .single();
 
@@ -60,11 +83,12 @@ const handler = createMcpHandler(
         }
 
         const scoreStr = score > 0 ? `+${score}` : `${score}`;
+        const dateNote = date ? ` for ${date}` : "";
         return {
           content: [
             {
               type: "text" as const,
-              text: `Logged: ${emoji} ${label} (score ${scoreStr})${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
+              text: `Logged${dateNote}: ${emoji} ${label} (score ${scoreStr})${notes ? ` — "${notes}"` : ""}\nEntry ID: ${data.id}`,
             },
           ],
         };

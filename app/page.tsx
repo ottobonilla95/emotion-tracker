@@ -10,7 +10,10 @@ import type { MoodLevel } from "@/lib/types";
 export default function Home() {
   const [selected, setSelected] = useState<MoodLevel | null>(null);
   const [notes, setNotes] = useState("");
+  const [customDate, setCustomDate] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const today = new Date().toISOString().split("T")[0];
 
   async function handleSubmit() {
     if (!selected) return;
@@ -25,6 +28,7 @@ export default function Home() {
           label: selected.label,
           score: selected.score,
           notes: notes.trim() || null,
+          ...(customDate && { date }),
         }),
       });
 
@@ -33,6 +37,8 @@ export default function Home() {
       setStatus("success");
       setSelected(null);
       setNotes("");
+      setCustomDate(false);
+      setDate(new Date().toISOString().split("T")[0]);
       setTimeout(() => setStatus("idle"), 2000);
     } catch {
       setStatus("error");
@@ -66,6 +72,27 @@ export default function Home() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={customDate}
+                  onChange={(e) => setCustomDate(e.target.checked)}
+                  className="rounded"
+                />
+                Log for a different date
+              </label>
+              {customDate && (
+                <input
+                  type="date"
+                  value={date}
+                  max={today}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              )}
             </div>
 
             <Button
