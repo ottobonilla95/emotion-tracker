@@ -26,5 +26,5 @@ export interface MoodStats {
   avgScore: number;
   mostFrequentMood: { emoji: string; label: string; count: number } | null;
   moodFrequency: { emoji: string; label: string; count: number }[];
-  dailyScores: { date: string; avgScore: number }[];
+  dailyScores: { date: string; avgScore: number | null }[];
 }

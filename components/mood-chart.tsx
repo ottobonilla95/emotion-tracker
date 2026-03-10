@@ -51,10 +51,10 @@ function CustomTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: { value: number }[];
+  payload?: { value: number | null }[];
   label?: string;
 }) {
-  if (!active || !payload?.length) return null;
+  if (!active || !payload?.length || payload[0].value === null) return null;
   const score = payload[0].value;
   const level = getMoodLevel(Math.round(score));
   return (
@@ -120,7 +120,12 @@ export function MoodScoreChart({ data }: MoodScoreChartProps) {
           stroke="#6366f1"
           strokeWidth={2}
           fill="url(#scoreGradient)"
-          dot={{ r: 3, fill: "#6366f1" }}
+          connectNulls={false}
+          dot={({ cx, cy, payload }: { cx?: number; cy?: number; payload?: { avgScore: number | null } }) =>
+            payload?.avgScore !== null && cx != null && cy != null ? (
+              <circle cx={cx} cy={cy} r={3} fill="#6366f1" stroke="none" />
+            ) : <></>
+          }
           activeDot={{ r: 5 }}
           name="Mood Score"
         />
