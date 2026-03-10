@@ -24,9 +24,19 @@ export default function HistoryPage() {
   async function fetchEntries() {
     setLoading(true);
     const params = filter > 0 ? `?days=${filter}` : "";
-    const res = await fetch(`/api/mood${params}`);
-    const data = await res.json();
-    setEntries(data);
+    try {
+      const res = await fetch(`/api/mood${params}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEntries(data);
+      } else {
+        console.error("API error:", data.error);
+        setEntries([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch entries:", err);
+      setEntries([]);
+    }
     setLoading(false);
   }
 

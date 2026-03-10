@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { MoodEntry, MoodStats } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
+  try {
   const supabase = await createClient();
   const startDate = request.nextUrl.searchParams.get("startDate");
   const endDate = request.nextUrl.searchParams.get("endDate");
@@ -81,4 +82,11 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json(stats);
+  } catch (err) {
+    console.error("GET /api/mood/stats error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
