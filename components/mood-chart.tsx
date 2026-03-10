@@ -120,7 +120,7 @@ export function MoodScoreChart({ data }: MoodScoreChartProps) {
           stroke="#6366f1"
           strokeWidth={2}
           fill="url(#scoreGradient)"
-          connectNulls={false}
+          connectNulls={true}
           dot={({ cx, cy, payload }: { cx?: number; cy?: number; payload?: { avgScore: number | null } }) =>
             payload?.avgScore !== null && cx != null && cy != null ? (
               <circle cx={cx} cy={cy} r={3} fill="#6366f1" stroke="none" />

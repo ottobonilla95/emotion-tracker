@@ -68,26 +68,23 @@ export async function GET(request: NextRequest) {
       dailyMap.set(date, { sum: score, count: 1 });
     }
   }
-  // Build full date range so every day appears in the chart
-  const rangeStart = startDate && endDate
-    ? new Date(startDate)
-    : (() => { const d = new Date(); d.setDate(d.getDate() - parseInt(days || "90")); return d; })();
-  const rangeEnd = startDate && endDate ? new Date(endDate) : new Date();
-
+  // Build date range from first entry to last entry (not the full period)
+  const sortedDates = Array.from(dailyMap.keys()).sort();
   const dailyScores: { date: string; avgScore: number | null }[] = [];
-  const cursor = new Date(rangeStart);
-  cursor.setUTCHours(0, 0, 0, 0);
-  const endDay = new Date(rangeEnd);
-  endDay.setUTCHours(0, 0, 0, 0);
 
-  while (cursor <= endDay) {
-    const dateStr = cursor.toISOString().split("T")[0];
-    const entry = dailyMap.get(dateStr);
-    dailyScores.push({
-      date: dateStr,
-      avgScore: entry ? Math.round((entry.sum / entry.count) * 10) / 10 : null,
-    });
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  if (sortedDates.length > 0) {
+    const cursor = new Date(sortedDates[0] + "T00:00:00Z");
+    const endDay = new Date(sortedDates[sortedDates.length - 1] + "T00:00:00Z");
+
+    while (cursor <= endDay) {
+      const dateStr = cursor.toISOString().split("T")[0];
+      const entry = dailyMap.get(dateStr);
+      dailyScores.push({
+        date: dateStr,
+        avgScore: entry ? Math.round((entry.sum / entry.count) * 10) / 10 : null,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
   }
 
   const stats: MoodStats = {
